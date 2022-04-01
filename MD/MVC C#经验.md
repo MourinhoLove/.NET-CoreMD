@@ -103,7 +103,29 @@ window.location.href = url;
 
 学习了2个礼拜我现在才知道他具体的布局方式。
 
-## 路由解析
+### - JS和CSS的引入
+
+#### CSS
+
+```html
+<link rel="stylesheet" href="../lib/layui/css/layui.css" />
+```
+
+`..`代表上一级目录
+
+`.` 代表目前所在的目录
+
+`/` 代表根目录
+
+#### JS
+
+```html
+<script src="../lib/layui/layui.js"></script>
+<script src="../lib/jquery/dist/jquery.min.js"></script>、
+<script src="../js/addUser.js"></script>
+```
+
+这里要注意 引入JS的位置要在`</body>`前，你也可以放在`<head>`里
 
 ### 为啥初始化后是HomeController的页面呢
 
@@ -135,12 +157,9 @@ public IActionResult Index()
 {
     return View("Login");
 }
-
 ```
 
 这里我指定了该控制器显示的view是Login
-
- 
 
 ## EF使用教程
 
@@ -163,8 +182,6 @@ public class Person
     public DateTime CreatedAt { get; set; }
 }
 ```
-
-
 
 ### 2.注册上下文
 
@@ -199,9 +216,13 @@ public LoginController(PersonContext dbContext)
 }
 ```
 
+### 5.根据原有的数据库创建数据
 
+>Scaffold-DbContext "server=localhost;Port=3306;Database=sql_hr; User=root;Password=9988;" Pomelo.EntityFrameworkCore.MySql -OutputDir Models -Tables employees,offices
+>
+>PM> Scaffold-DbContext "server=localhost;Port=3306;Database=sql_inventory; User=root;Password=9988;" Pomelo.EntityFrameworkCore.MySql -OutputDir Models -Context ProductContext -DataAnnotations
 
-### 5.查询语句
+### 5.查询数据
 
 #### - 查询所有
 
@@ -313,8 +334,211 @@ public async Task<Person> login(string name, string password)
             }
         }
 }
-
-
-
 ```
 
+## ORM的Linq
+
+### 简介
+
+通过微软的EF Core框架跟数据库交互的时候，你需要考虑用原生SQL或者Linq来跟数据库做交互
+
+这里我们推荐用Linq
+
+### 查询
+
+#### 1. 获取一个表的所有数据
+
+```c#
+using (var context = new BloggingContext())
+{
+    var blogs = context.Blogs.ToList();
+}
+```
+
+这里的ToList()就是Linq提供给你的
+
+#### 2. 获取单个数据
+
+```c#
+var blog = context.Blogs
+    .Single(b => b.BlogId == 1);
+```
+
+这里根据id查出表中id = 2的数据
+
+#### 3. 筛选
+
+```c#
+using (var context = new BloggingContext())
+{
+    var blogs = context.Blogs
+        .Where(b => b.Url.Contains("dotnet"))
+        .ToList();
+}
+```
+
+获取表中URL包含dotnet的字符串
+
+#### 4.分页
+
+```c#
+var list = await _dbcontex.Products
+          .Where(p => p.Name.Contains("D"))
+          .Skip(index)
+          .Take(limit)
+          .ToListAsync();
+```
+
+`Skip` :跳过多少数据 进行查询
+
+`Take` :获取多少数据
+
+分页的计算公式（默认从1开始）:
+
+`var index = (page - 1) * limit;`
+
+比如前端需要 第一页的数据，每次获取10条
+
+#### 5. 多表查询
+
+1. Include
+
+   如果你的实体类里面有一个外键，指向了另一张表。你可以使用`Include`把那张表的所有数据拿过来，比如说
+
+   ```c#
+   var items = await _dbcontex
+       .Tags
+       .Where(x => x.Date.ToString() == date)
+       .Include(Item => Item.Item)
+       .ToListAsync();
+   ```
+
+   这里就把Item指向的内容一起拿过来。当然有一个前提就是你需要在实体类里面定义好你的数据
+
+   像这样
+
+   ```c#
+   [ForeignKey("ItemId")]
+   [InverseProperty("Tags")]
+   public virtual Item Item { get; set; } = null!;
+   ```
+
+   指定了外键
+
+   个人觉得这个可能会用的不多。毕竟我可能需要返一个自定义的选项给前端
+
+#### 6.匿名参数
+
+```c#
+.Join(_dbcontex.Items, m => m.ItemId, mt => mt.ItemId, (m,mt)=> new
+{
+    claaName = m.ClassName,
+    tagId = m.TagId,
+    startDate = m.StartDate,
+    endDate = m.EndDate,
+    teacherName = mt.TeacherName,
+    itemId = mt.ItemId
+})
+```
+
+`_dbcontex.Items` : 要链接的表
+
+`m => m.ItemId`： 主表链接字段
+
+`mt => mt.ItemId`: 副表连接字段
+
+通过这种写法，可以创建一个临时的类，因为有时候数据需要返给前端需要的格式。如果这个格式只在该方法使用，那么可以考虑用匿名参数创建临时的class。
+
+#### 7.数组分组
+
+```c#
+.GroupBy(u => u.GroupID)
+.Select(grp => grp.ToList())
+```
+
+把相同id的数据分为一组
+
+#### 8.Join的用法 这里联合了三张表
+
+````c#
+.Join(
+    _dbcontext.Teachers,
+    s => s.TeacherId,
+    t => t.TeacherId,
+    (s, t) => new
+    {
+        s,
+        t.TeacherName
+    })
+.Join(
+    _dbcontext.Courses,
+    s => s.s.CourseId,
+    c => c.CourseId,
+    (s, c) => new
+    {
+        TeacherName = s.TeacherName,
+        TeacherId = s.s.TeacherId,
+        CourseID = c.CourseId,
+        CourseName = c.CourseName,
+        StartDate = s.s.StartDate,
+        EndDate = s.s.EndDate
+    })
+````
+
+
+
+### 新增
+
+### 1. ADD 
+
+```c#
+_dbcontex.Add(product);
+var isSucceed = await _dbcontex.SaveChangesAsync();
+```
+
+### 元组
+
+有时候你需要方法返回2个值
+
+这时候你可以使用元组
+
+例如
+
+` Task<(List<Product>, int)>`
+
+## 错误拦截
+
+### 方法一
+
+```c#
+AddControllersWithViews(config => config.Filters.Add(typeof(ModelValidateActionFilterAttribute)))
+```
+
+自定义一个筛选器
+
+```c#
+ public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        if (!context.ModelState.IsValid)
+        {
+            //公共返回数据类
+            ReturnMsg returnMsg = new ReturnMsg() { Code = "-1" };
+
+            //获取具体的错误消息
+            foreach (var item in context.ModelState.Values)
+            {
+                //遍历所有项目的中的所有错误信息
+                foreach (var err in item.Errors)
+                {
+                    //消息拼接,用|隔开，前端根据容易解析
+                    returnMsg.Msg += $"{err.ErrorMessage}|";
+                }
+            }
+            context.Result = new JsonResult(returnMsg);
+        }
+
+    }
+}
+```
+
+但是这个方法返回的是200的status code

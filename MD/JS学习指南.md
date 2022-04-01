@@ -25,3 +25,14 @@ t.forEach(value => {
 })
 ```
 
+
+
+## 得到时间
+
+```javascript
+    // 得到开始时间
+    let startDay = new Date(element.startDate).getDate();
+    // 得到结束时间
+    let endDay = new Date(element.endDate).getDate();
+```
+
