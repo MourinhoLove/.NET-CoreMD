@@ -411,21 +411,33 @@ var list = await _dbcontex.Products
        .Where(x => x.Date.ToString() == date)
        .Include(Item => Item.Item)
        .ToListAsync();
+   
+     var list = await _context.Productions
+            .Include(b=> b.Machine)
+            .Include(c => c.Raw)
+            .Select(d => new
+            {
+                MachineName = d.Machine.MachineName,
+                rawName = d.Raw.RawName
+            })
+            .ToListAsync();
    ```
 
    这里就把Item指向的内容一起拿过来。当然有一个前提就是你需要在实体类里面定义好你的数据
 
    像这样
-
+   
    ```c#
    [ForeignKey("ItemId")]
    [InverseProperty("Tags")]
    public virtual Item Item { get; set; } = null!;
    ```
-
+   
    指定了外键
-
+   
    个人觉得这个可能会用的不多。毕竟我可能需要返一个自定义的选项给前端
+   
+   Select可以把原本的对象转换成一个新的对象
 
 #### 6.匿名参数
 
@@ -458,6 +470,21 @@ var list = await _dbcontex.Products
 
 把相同id的数据分为一组
 
+在看看另一个例子
+
+```c#
+var group = (from c in list
+         group c by c.MachineId into g
+         select new
+         {
+             MachineId = g.Key,
+             lists = g.ToList()
+
+         }).ToList();
+```
+
+
+
 #### 8.Join的用法 这里联合了三张表
 
 ````c#
@@ -485,7 +512,45 @@ var list = await _dbcontex.Products
     })
 ````
 
+来看看另一个版本 更简单 更直接
 
+```css
+var list = await (from p in _context.Productions
+                  join m in _context.Machines on p.MachineId equals m.MachineId
+                  join r in _context.Raws on p.RawId equals r.RawId
+                  select new ProductionDto
+                  {
+                      MachineName = m.MachineName,
+                      RawName = r.RawName,
+                      MachineId = p.MachineId,
+                      RawId = r.RawId,
+                      ProductionStatus = p.ProductionStatus,
+                      Time = p.Time
+                  }).ToListAsync();
+```
+
+这里也是联合三张表 进行查询
+
+
+
+#### 9.原生Join查询
+
+```c#
+var list = await _context.Productions
+        .FromSqlRaw(@"SELECT p.machine_id, r.raw_id
+                      FROM production p
+                      JOIN machine m ON p.machine_id = m.machine_id
+                      JOIN raw r ON p.raw_id = r.raw_id")
+         .Select(d => new ProductionDto()
+         {
+             MachineName = d.Machine.MachineName,
+             RawName = d.Raw.RawName
+         })
+         .ToListAsync();
+    return list;
+```
+
+这里的select方法 会把上面的语句转换。在这里请不要把原生的select 理解为我要查询的列明。在ef core 不存在你查询单独列名。它会返回所有。
 
 ### 新增
 
@@ -536,9 +601,61 @@ AddControllersWithViews(config => config.Filters.Add(typeof(ModelValidateActionF
             }
             context.Result = new JsonResult(returnMsg);
         }
-
     }
 }
 ```
 
 但是这个方法返回的是200的status code
+
+## Json
+
+```c#
+var json = JsonConvert.SerializeObject(value);
+var weatherForecast = JsonConvert.DeserializeObject<dynamic>(json);
+var name = weatherForecast.machineId.ToString();//name大小写与前端参数一致
+// 2.
+var data = JsonConvert.DeserializeObject<dynamic>(value.ToString());
+var machined = data.machineId.ToString();
+```
+
+```c#
+JsonElement data = value.GetProperty("machineId");
+var str = data.ToString();
+```
+
+```c#
+var converter = new ExpandoObjectConverter();
+var exObjExpandoObject = JsonConvert.DeserializeObject<ExpandoObject>(value.ToString(), converter) as dynamic;
+var machineId = exObjExpandoObject.machineId;
+```
+
+```c#
+var json = value.ToString(); // suppose `dynamicObject` is your input
+var  dictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+var str = dictionary["machineId"];
+```
+
+```c#
+JObjetc
+// 1
+string strRoleName = (string)jsonObj["strRoleName"].ToObject(typeof(string));
+// value的方法
+var strRoleName = obj.Value<string>("strRoleName");
+var width = jToken.Value<double?>("width") ?? 100;
+
+JObject obj = JObject.Parse(jsoncontent);
+
+obj ["Key Name"].ToString()
+
+// object的方法
+ var addGrant = (bool?)item2["addGrant"].ToObject(typeof(bool)) ?? false;
+
+
+// 2
+// 把Json对象反序列化
+var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(jsonObj));
+// 角色名称
+string strRoleName = obj.strRoleName;
+
+```
+

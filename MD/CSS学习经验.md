@@ -364,3 +364,89 @@ function ondrop(e) {
 
 
 
+第二版本
+
+```javascript
+function drag(ev) {
+ev.dataTransfer.setData("Text", ev.target.id);
+}
+function allowDrop(ev) {
+ev.preventDefault();
+}
+function notDrop(ev) {
+ev.stopPropagation();
+}
+function drop(ev) {
+// console.log(ev.target.id);
+// let bc = document.getElementById()
+ev.preventDefault();
+var data = ev.dataTransfer.getData("Text");
+ev.target.appendChild(document.getElementById(data));
+}
+```
+
+## 交换位置
+
+```javascript
+// 获取放下的元素
+let dropElm = document.getElementById(nextId);
+// 获取当前的元素
+let currentElm = document.getElementById(currentId);
+// 获取一个临时的元素
+const temp = document.createElement('div')
+currentElm.before(temp);
+dropElm.before(currentElm);
+temp.replaceWith(dropElm)
+```
+
+## 如何用`ol`来制作菜单
+
+```html
+<div class="nav">
+    <ul>
+        <li><a href="#" class="current">首页</a></li>
+        <li><a href="#">首页</a></li>
+        <li><a href="#">首页</a></li>
+        <li><a href="#">首页</a></li>
+        <li><a href="#">首页</a></li>
+    </ul>
+</div>
+```
+
+```css
+/* 去掉ul的圆点 */
+.header .nav ul {
+  list-style: none; /*去掉列表前面的圆点*/
+  margin-left: 20px;
+  display: flex;
+}
+.nav li {
+  display: flex;
+  box-sizing: border-box;
+  margin-left: 0;
+  border-left: 1px solid #252947; /*每个li之间有间隔线*/
+}
+.header .nav ul li a {
+  text-decoration: none; /*去掉超链的下划线*/
+  color: #818496;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 84px;
+  height: 58px;
+}
+.header .nav ul li a:hover,
+.header .nav ul li a.current {
+  color: white;
+  background-color: #252947;
+}
+```
+
+## JS阻止点击事件穿透
+
+```javascript
+event.stopPropagation();
+```
+
+子元素点击后 防止执行父元素的点击事件
+
